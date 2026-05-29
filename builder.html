@@ -174,10 +174,10 @@
 
 <script type="module">
   // ==========================================
-  // CONFIGURATION & HARDCODED API KEYS
+  // CONFIGURATION & HARDCODED API KEYS (OpenRouter)
   // ==========================================
-  const GROQ_API_KEY = "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"; 
-  const DEFAULT_MODEL = "llama-3.3-70b-versatile";
+  const OPENROUTER_API_KEY = "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";
+  const DEFAULT_MODEL = "deepseek/deepseek-r1:free";
 
   let conversationalContext = [
     {
@@ -244,8 +244,8 @@ CRITICAL REQUIREMENTS:
       loaderMsg.textContent = "Building modern grid systems and interfaces...";
       
       conversationalContext.push({ role: "user", content: userPromptText });
-      
-      const rawAIResponse = await queryGroqAPI(conversationalContext);
+
+      const rawAIResponse = await queryOpenRouterAPI(conversationalContext);
       calculatedCodeInstance = extractSanitizedHTML(rawAIResponse);
       
       updateAgentLogStep(logsElement, "🚀 Compiling interactions & rendering DOM environment...", true);
@@ -264,7 +264,7 @@ CRITICAL REQUIREMENTS:
       
     } catch(err) {
       console.error(err);
-      appendChatMessage('assistant', "⚠️ System error occurred matching Groq API access pipeline. Ensure your Groq API security token key config value is set inside the source parameters.");
+      appendChatMessage('assistant', "⚠️ System error contacting OpenRouter API. Ensure your OpenRouter API key is configured and valid.");
     } finally {
       loader.classList.remove('active');
       statusText.textContent = "Workspace Synchronization Active";
@@ -280,17 +280,17 @@ CRITICAL REQUIREMENTS:
     executePrimaryBuild(taskContent);
   };
 
-  async function queryGroqAPI(messagePayload) {
-    if(!GROQ_API_KEY || GROQ_API_KEY.includes("YOUR_ACTUAL_GROQ_API_KEY_HERE")) {
+  async function queryOpenRouterAPI(messagePayload) {
+    if(!OPENROUTER_API_KEY || OPENROUTER_API_KEY.includes("YOUR_OPENROUTER_API_KEY_HERE")) {
       throw new Error("Missing API Context Authentication configuration parameters.");
     }
 
-    const endpoint = "https://api.groq.com/openai/v1/chat/completions";
+    const endpoint = "https://api.openrouter.ai/v1/chat/completions";
     const res = await fetch(endpoint, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${GROQ_API_KEY}`
+        "Authorization": `Bearer ${OPENROUTER_API_KEY}`
       },
       body: JSON.stringify({
         model: DEFAULT_MODEL,
@@ -305,7 +305,7 @@ CRITICAL REQUIREMENTS:
     }
 
     const json = await res.json();
-    return json.choices[0].message.content;
+    return json.choices?.[0]?.message?.content || (json.output || json.data || "");
   }
 
   function extractSanitizedHTML(rawMarkdownText) {
