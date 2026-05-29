@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Nexus Canvas Workspace</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#06060a;
+    --bg-sidebar:#0b0b14;
+    --surface:rgba(255,255,255,0.03);
+    --border:rgba(255,255,255,0.06);
+    --border-strong:rgba(255,255,255,0.12);
+    --text:#f5f5f7;
+    --muted:#8e8e9f;
+    --accent:#c8a96a;
+    --grad: linear-gradient(135deg,#e9d8a6 0%,#c8a96a 40%,#8c6f3f 100%);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;
+    -webkit-font-smoothing:antialiased;height:100vh;overflow:hidden;display:flex;flex-direction:column;
+  }
+  button{cursor:pointer;border:none;background:none;color:inherit;font-family:inherit}
+
+  /* TOP BAR */
+  header{
+    height:56px;background:#09090f;border-bottom:1px solid var(--border);
+    display:flex;align-items:center;justify-content:space-between;padding:0 20px;z-index:10;
+  }
+  .brand-group{display:flex;align-items:center;gap:16px}
+  .back-home{color:var(--muted);font-size:13px;display:flex;align-items:center;gap:6px;transition:color .2s}
+  .back-home:hover{color:var(--text)}
+  .app-title{font-size:14px;font-weight:600;display:flex;align-items:center;gap:8px}
+  .status-badge{
+    font-size:11px;padding:3px 8px;border-radius:999px;background:rgba(200,169,106,0.1);
+    color:var(--accent);border:1px solid rgba(200,169,106,0.2);display:flex;align-items:center;gap:6px;
+  }
+  .pulse-dot{width:6px;height:6px;background:var(--accent);border-radius:50%;animation:pulse 2s infinite}
+  @keyframes pulse {0% {opacity:0.3} 50% {opacity:1} 100% {opacity:0.3}}
+
+  /* MAIN LAYOUT */
+  .workspace-container{display:flex;flex:1;height:calc(100vh - 56px);width:100%}
+
+  /* SIDEBAR (CHAT) */
+  .chat-sidebar{
+    width:400px;background:var(--bg-sidebar);border-right:1px solid var(--border);
+    display:flex;flex-direction:column;justify-content:space-between;position:relative;
+  }
+  .history-container{flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:16px}
+  
+  .message{padding:14px;border-radius:12px;max-width:90%;font-size:14px;line-height:1.5}
+  .message.user{background:var(--surface);border:1px solid var(--border);align-self:flex-end;color:#fff}
+  .message.assistant{background:rgba(200,169,106,0.02);border:1px solid rgba(200,169,106,0.08);align-self:flex-start}
+  
+  /* Agent logs container */
+  .agent-status-box{
+    margin-top:8px;border-top:1px dashed var(--border);padding-top:8px;display:flex;
+    flex-direction:column;gap:6px;font-size:12.5px;color:var(--muted);
+  }
+  .log-line{display:flex;align-items:center;gap:8px}
+  .log-line.active{color:var(--accent)}
+
+  .input-container{padding:16px;border-top:1px solid var(--border);background:#0d0d17}
+  .input-wrap{
+    background:rgba(0,0,0,0.2);border:1px solid var(--border-strong);border-radius:12px;
+    padding:10px;display:flex;flex-direction:column;gap:8px;
+  }
+  .input-wrap textarea{
+    width:100%;background:none;border:none;outline:none;color:#fff;
+    font-family:inherit;font-size:14px;resize:none;min-height:44px;
+  }
+  .input-action-row{display:flex;justify-content:flex-end;align-items:center}
+  .action-btn{
+    background:var(--grad);color:#0a0a0f;font-weight:600;padding:6px 14px;
+    border-radius:8px;font-size:13px;transition:transform .1s ease;display:flex;align-items:center;gap:6px;
+  }
+  .action-btn:active{transform:scale(0.97)}
+
+  /* PREVIEW CANVAS (RIGHT SIDE) */
+  .preview-canvas{flex:1;display:flex;flex-direction:column;background:#020204}
+  .canvas-header{
+    height:44px;background:#09090f;border-bottom:1px solid var(--border);
+    display:flex;align-items:center;padding:0 20px;gap:8px;
+  }
+  .tab-btn{
+    font-size:13px;color:var(--muted);padding:6px 12px;border-radius:6px;
+    transition:all .2s;font-weight:500;
+  }
+  .tab-btn:hover{color:var(--text);background:var(--surface)}
+  .tab-btn.active{color:#fff;background:rgba(255,255,255,0.06);border:1px solid var(--border)}
+
+  .view-viewport{flex:1;width:100%;position:relative}
+  .canvas-frame{width:100%;height:100%;border:none;background:#fff;display:block}
+  .code-view-container{
+    width:100%;height:100%;display:none;background:#050508;
+    padding:20px;overflow:auto;font-family:'Fira Code',monospace;font-size:13px;color:#d4d4d8;line-height:1.6;
+  }
+  .code-area{width:100%;height:100%;background:none;border:none;resize:none;outline:none;color:inherit;font-family:inherit}
+
+  /* FULLSCREEN LOADER OVERLAY */
+  .initial-load-overlay{
+    position:absolute;inset:0;background:#0a0a0f;z-index:100;
+    display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;
+  }
+  .initial-load-overlay.active{display:flex}
+  .spinner{
+    width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--accent);
+    border-radius:50%;animation:spin 1s linear infinite;margin-bottom:20px;
+  }
+  @keyframes spin {to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand-group">
+    <a href="index.html" class="back-home">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg> Back
+    </a>
+    <div class="app-title">
+      <span style="font-weight:800;color:var(--accent)">N</span> Nexus Project Canvas
+    </div>
+  </div>
+  <div class="status-badge">
+    <span class="pulse-dot"></span> <span id="runtimeStatus">Ready Workspace</span>
+  </div>
+</header>
+
+<div class="workspace-container">
+  <aside class="chat-sidebar">
+    <div class="history-container" id="chatHistory">
+      <div class="message assistant">
+        Hello! Describe the design specifications or features you need, and I'll engine and patch them directly onto the canvas view.
+      </div>
+    </div>
+
+    <div class="input-container">
+      <div class="input-wrap">
+        <textarea id="workspaceInput" placeholder="Ask Nexus to modify or enhance your canvas app..."></textarea>
+        <div class="input-action-row">
+          <button class="action-btn" onclick="submitRevisionPrompt()">
+            Build Changes
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <main class="preview-canvas">
+    <div class="canvas-header">
+      <button class="tab-btn active" id="btnPreview" onclick="switchCanvasTab('preview')">Live Canvas</button>
+      <button class="tab-btn" id="btnCode" onclick="switchCanvasTab('code')">Code Architecture</button>
+    </div>
+    <div class="view-viewport">
+      <div class="initial-load-overlay" id="globalWorkspaceLoader">
+        <div class="spinner"></div>
+        <h3 style="font-size:18px;margin-bottom:8px">Nexus Agent Engine Executing</h3>
+        <p id="agentLoaderMessage" style="color:var(--muted);font-size:14px;max-width:400px">Initializing layout structures...</p>
+      </div>
+
+      <iframe id="previewFrame" class="canvas-frame" title="Live Site Rendering View"></iframe>
+      
+      <div id="codeViewBlock" class="code-view-container">
+        <textarea id="codeAreaView" class="code-area" readonly></textarea>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script type="module">
+  // ==========================================
+  // CONFIGURATION & HARDCODED API KEYS
+  // ==========================================
+  const GROQ_API_KEY = "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"; 
+  const DEFAULT_MODEL = "llama-3.3-70b-versatile";
+
+  let conversationalContext = [
+    {
+      role: "system",
+      content: `You are Nexus AI, an elite frontend software engineering agent specializing in single-page applications.
+Your core objective is to output valid single-file web applications combining semantic modern HTML, layout utilities, beautiful color choices, and dynamic frontend interactions.
+
+CRITICAL REQUIREMENTS:
+- You MUST construct fully functional websites utilizing Tailwind CSS via CDN link: <script src="https://cdn.tailwindcss.com"><\/script>
+- Include font links, FontAwesome/Lucide custom svg icons, or access to third-party image elements from Unsplash to ensure gorgeous aesthetics matching Lovable and Bolt.
+- You must write raw clean JS code directly into script modules inside the page to run dynamic systems (such as item arrays, modal actions, interactive charts, filtering toggles).
+- OUTPUT SPECIFICATION: Return EXACTLY the updated production-ready HTML code document block starting with <!DOCTYPE html>. Do NOT provide prose outside the markdown block or separate code parts.`
+    }
+  ];
+
+  let calculatedCodeInstance = "";
+
+  window.addEventListener('DOMContentLoaded', () => {
+    const URLParams = new URLSearchParams(window.location.search);
+    const initialPrompt = URLParams.get('prompt');
+    if (initialPrompt) {
+      document.getElementById('workspaceInput').value = initialPrompt;
+      executePrimaryBuild(initialPrompt);
+    }
+  });
+
+  window.switchCanvasTab = function(targetTab) {
+    const pBtn = document.getElementById('btnPreview');
+    const cBtn = document.getElementById('btnCode');
+    const frame = document.getElementById('previewFrame');
+    const codeContainer = document.getElementById('codeViewBlock');
+
+    if (targetTab === 'preview') {
+      pBtn.classList.add('active');
+      cBtn.classList.remove('active');
+      frame.style.display = 'block';
+      codeContainer.style.display = 'none';
+    } else {
+      cBtn.classList.add('active');
+      pBtn.classList.remove('active');
+      frame.style.display = 'none';
+      codeContainer.style.display = 'block';
+    }
+  };
+
+  async function executePrimaryBuild(userPromptText) {
+    const loader = document.getElementById('globalWorkspaceLoader');
+    const statusText = document.getElementById('runtimeStatus');
+    const loaderMsg = document.getElementById('agentLoaderMessage');
+    
+    loader.classList.add('active');
+    statusText.textContent = "Nexus Engineering Pipeline Active...";
+    
+    appendChatMessage('user', userPromptText);
+    
+    const logsElement = createAgentLogContainer();
+    
+    try {
+      updateAgentLogStep(logsElement, "⚡ Planning semantic design specifications...", true);
+      loaderMsg.textContent = "Architecting clean site map components...";
+      await delay(1200);
+
+      updateAgentLogStep(logsElement, "🏗️ Injecting layout components & Tailwind styling structures...", true);
+      loaderMsg.textContent = "Building modern grid systems and interfaces...";
+      
+      conversationalContext.push({ role: "user", content: userPromptText });
+      
+      const rawAIResponse = await queryGroqAPI(conversationalContext);
+      calculatedCodeInstance = extractSanitizedHTML(rawAIResponse);
+      
+      updateAgentLogStep(logsElement, "🚀 Compiling interactions & rendering DOM environment...", true);
+      loaderMsg.textContent = "Injecting live interaction states...";
+      await delay(800);
+
+      // Render viewport frame context
+      const previewIframe = document.getElementById('previewFrame');
+      previewIframe.srcdoc = calculatedCodeInstance;
+      
+      // Sync raw structural text area
+      document.getElementById('codeAreaView').value = calculatedCodeInstance;
+      
+      conversationalContext.push({ role: "assistant", content: rawAIResponse });
+      appendChatMessage('assistant', "I have compiled and implemented your web system onto the live canvas viewport safely. Check the layout or request revisions below!");
+      
+    } catch(err) {
+      console.error(err);
+      appendChatMessage('assistant', "⚠️ System error occurred matching Groq API access pipeline. Ensure your Groq API security token key config value is set inside the source parameters.");
+    } finally {
+      loader.classList.remove('active');
+      statusText.textContent = "Workspace Synchronization Active";
+    }
+  }
+
+  window.submitRevisionPrompt = function() {
+    const inputArea = document.getElementById('workspaceInput');
+    const taskContent = inputArea.value.trim();
+    if(!taskContent) return;
+    
+    inputArea.value = "";
+    executePrimaryBuild(taskContent);
+  };
+
+  async function queryGroqAPI(messagePayload) {
+    if(!GROQ_API_KEY || GROQ_API_KEY.includes("YOUR_ACTUAL_GROQ_API_KEY_HERE")) {
+      throw new Error("Missing API Context Authentication configuration parameters.");
+    }
+
+    const endpoint = "https://api.groq.com/openai/v1/chat/completions";
+    const res = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${GROQ_API_KEY}`
+      },
+      body: JSON.stringify({
+        model: DEFAULT_MODEL,
+        messages: messagePayload,
+        temperature: 0.2
+      })
+    });
+
+    if(!res.ok) {
+      const details = await res.text();
+      throw new Error(`API Transaction Fault: ${details}`);
+    }
+
+    const json = await res.json();
+    return json.choices[0].message.content;
+  }
+
+  function extractSanitizedHTML(rawMarkdownText) {
+    const standardBlockRegex = /```html([\s\S]*?)```/i;
+    const generalBlockRegex = /```([\s\S]*?)```/;
+    
+    let match = standardBlockRegex.exec(rawMarkdownText) || generalBlockRegex.exec(rawMarkdownText);
+    if (match && match[1]) {
+      return match[1].trim();
+    }
+    
+    if (rawMarkdownText.includes("<!DOCTYPE html>") || rawMarkdownText.includes("<html")) {
+      return rawMarkdownText.trim();
+    }
+    return rawMarkdownText;
+  }
+
+  function appendChatMessage(senderRole, narrative) {
+    const container = document.getElementById('chatHistory');
+    const block = document.createElement('div');
+    block.className = `message ${senderRole}`;
+    block.textContent = narrative;
+    container.appendChild(block);
+    container.scrollTop = container.scrollHeight;
+  }
+
+  function createAgentLogContainer() {
+    const container = document.getElementById('chatHistory');
+    const logBox = document.createElement('div');
+    logBox.className = "agent-status-box";
+    container.appendChild(logBox);
+    return logBox;
+  }
+
+  function updateAgentLogStep(targetLogBox, traceNarrative, isCompleted) {
+    const line = document.createElement('div');
+    line.className = "log-line active";
+    line.textContent = traceNarrative;
+    targetLogBox.appendChild(line);
+    const container = document.getElementById('chatHistory');
+    container.scrollTop = container.scrollHeight;
+  }
+
+  function delay(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
+</script>
+
+</body>
+</html>
